@@ -2,9 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {
-    UniswapV3ExchangeProviderConfig
-} from "../UniswapV3ExchangeProviderConfig.sol";
+import {UniswapV3ExchangeProviderConfig} from "../UniswapV3ExchangeProviderConfig.sol";
 import {UniswapV3ExchangeProvider} from "../UniswapV3ExchangeProvider.sol";
 
 interface ITOKEN is IERC20 {
@@ -17,12 +15,9 @@ interface ITOKEN is IERC20 {
 /// @dev Adds token interfaces and test utilities on top of Config
 library UniswapV3ExchangeProviderTestConfig {
     // Re-export Config constants for convenience in tests
-    address internal constant SWAP_ROUTER =
-        UniswapV3ExchangeProviderConfig.SWAP_ROUTER;
-    uint24 internal constant POOL_FEE =
-        UniswapV3ExchangeProviderConfig.POOL_FEE;
-    uint256 internal constant SLIPPAGE_TOLERANCE =
-        UniswapV3ExchangeProviderConfig.SLIPPAGE_TOLERANCE;
+    address internal constant SWAP_ROUTER = UniswapV3ExchangeProviderConfig.SWAP_ROUTER;
+    uint24 internal constant POOL_FEE = UniswapV3ExchangeProviderConfig.POOL_FEE;
+    uint256 internal constant SLIPPAGE_TOLERANCE = UniswapV3ExchangeProviderConfig.SLIPPAGE_TOLERANCE;
 
     address internal constant WETH = UniswapV3ExchangeProviderConfig.WETH;
     address internal constant USDC = UniswapV3ExchangeProviderConfig.USDC;
@@ -68,20 +63,12 @@ library UniswapV3ExchangeProviderTestConfig {
     // ============ Pair Configuration (Delegated to Config) ============
 
     /// @notice Get singlehop pair configuration
-    function getSinglehopPairs()
-        internal
-        pure
-        returns (UniswapV3ExchangeProvider.SinglehopPair[] memory)
-    {
+    function getSinglehopPairs() internal pure returns (UniswapV3ExchangeProvider.SinglehopPair[] memory) {
         return UniswapV3ExchangeProviderConfig.getDefaultSinglehopPairs();
     }
 
     /// @notice Get multihop pair configuration
-    function getMultihopPairs()
-        internal
-        pure
-        returns (UniswapV3ExchangeProvider.MultihopPair[] memory)
-    {
+    function getMultihopPairs() internal pure returns (UniswapV3ExchangeProvider.MultihopPair[] memory) {
         return UniswapV3ExchangeProviderConfig.getDefaultMultihopPairs();
     }
 
@@ -90,20 +77,14 @@ library UniswapV3ExchangeProviderTestConfig {
     /// @notice Convert human-readable amount to raw token amount
     /// @param amount Human-readable amount (e.g., 1.5)
     /// @param decimals Token decimals
-    function toRaw(
-        uint256 amount,
-        uint8 decimals
-    ) internal pure returns (uint256) {
+    function toRaw(uint256 amount, uint8 decimals) internal pure returns (uint256) {
         return amount * (10 ** decimals);
     }
 
     /// @notice Convert raw token amount to human-readable amount
     /// @param rawAmount Raw token amount
     /// @param decimals Token decimals
-    function fromRaw(
-        uint256 rawAmount,
-        uint8 decimals
-    ) internal pure returns (uint256) {
+    function fromRaw(uint256 rawAmount, uint8 decimals) internal pure returns (uint256) {
         return rawAmount / (10 ** decimals);
     }
 }
