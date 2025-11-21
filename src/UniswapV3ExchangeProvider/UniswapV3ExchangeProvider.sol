@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {
-    ISwapRouter
-} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {
-    TransferHelper
-} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
 contract UniswapV3ExchangeProvider {
     error InvalidTokenPair();
@@ -64,8 +60,7 @@ contract UniswapV3ExchangeProvider {
         for (uint256 i = 0; i < _multihopPairs.length; i++) {
             address tokenIn = _multihopPairs[i].tokenIn;
             address tokenOut = _multihopPairs[i].tokenOut;
-            address[] memory intermediaries = _multihopPairs[i]
-                .intermediaryTokens;
+            address[] memory intermediaries = _multihopPairs[i].intermediaryTokens;
 
             if (intermediaries.length == 0) {
                 revert InvalidMultihopPath();
@@ -76,24 +71,18 @@ contract UniswapV3ExchangeProvider {
 
             multihopPairs[tokenIn][tokenOut] = intermediaries;
 
-            address[] memory reverseIntermediaries = new address[](
-                intermediaries.length
-            );
+            address[] memory reverseIntermediaries = new address[](intermediaries.length);
             for (uint256 j = 0; j < intermediaries.length; j++) {
-                reverseIntermediaries[j] = intermediaries[
-                    intermediaries.length - 1 - j
-                ];
+                reverseIntermediaries[j] = intermediaries[intermediaries.length - 1 - j];
             }
             multihopPairs[tokenOut][tokenIn] = reverseIntermediaries;
         }
     }
 
-    function swapInput(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 minAmountOut
-    ) public returns (uint256 amountOut) {
+    function swapInput(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut)
+        public
+        returns (uint256 amountOut)
+    {
         if (!_isValidPair(tokenIn, tokenOut)) {
             revert InvalidTokenPair();
         }
@@ -102,12 +91,7 @@ contract UniswapV3ExchangeProvider {
             revert AmountMustBeGreaterThanZero();
         }
 
-        TransferHelper.safeTransferFrom(
-            tokenIn,
-            msg.sender,
-            address(this),
-            amountIn
-        );
+        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
 
         TransferHelper.safeApprove(tokenIn, address(swapRouter), amountIn);
 
@@ -115,28 +99,26 @@ contract UniswapV3ExchangeProvider {
             // Build path: tokenIn -> intermediary1 -> intermediary2 -> ... -> tokenOut
             bytes memory path = _buildPathForExactInput(tokenIn, tokenOut);
 
-            ISwapRouter.ExactInputParams memory params = ISwapRouter
-                .ExactInputParams({
-                    path: path,
-                    recipient: msg.sender,
-                    deadline: block.timestamp,
-                    amountIn: amountIn,
-                    amountOutMinimum: minAmountOut
-                });
+            ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
+                path: path,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountIn: amountIn,
+                amountOutMinimum: minAmountOut
+            });
 
             amountOut = swapRouter.exactInput(params);
         } else {
-            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
-                .ExactInputSingleParams({
-                    tokenIn: tokenIn,
-                    tokenOut: tokenOut,
-                    fee: POOL_FEE,
-                    recipient: msg.sender,
-                    deadline: block.timestamp,
-                    amountIn: amountIn,
-                    amountOutMinimum: minAmountOut,
-                    sqrtPriceLimitX96: 0
-                });
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: POOL_FEE,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountIn: amountIn,
+                amountOutMinimum: minAmountOut,
+                sqrtPriceLimitX96: 0
+            });
 
             amountOut = swapRouter.exactInputSingle(params);
         }
@@ -144,12 +126,10 @@ contract UniswapV3ExchangeProvider {
         emit SwapExecuted(tokenIn, tokenOut, amountIn, amountOut, msg.sender);
     }
 
-    function swapOutput(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountOut,
-        uint256 maxAmountIn
-    ) public returns (uint256 amountIn) {
+    function swapOutput(address tokenIn, address tokenOut, uint256 amountOut, uint256 maxAmountIn)
+        public
+        returns (uint256 amountIn)
+    {
         if (!_isValidPair(tokenIn, tokenOut)) {
             revert InvalidTokenPair();
         }
@@ -160,85 +140,59 @@ contract UniswapV3ExchangeProvider {
 
         uint256 maxAmountInWithSlippage = _applySlippageToMaxInput(maxAmountIn);
 
-        TransferHelper.safeTransferFrom(
-            tokenIn,
-            msg.sender,
-            address(this),
-            maxAmountInWithSlippage
-        );
+        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), maxAmountInWithSlippage);
 
-        TransferHelper.safeApprove(
-            tokenIn,
-            address(swapRouter),
-            maxAmountInWithSlippage
-        );
+        TransferHelper.safeApprove(tokenIn, address(swapRouter), maxAmountInWithSlippage);
 
         if (_needsMultihop(tokenIn, tokenOut)) {
             // Build reversed path for exactOutput: tokenOut -> intermediary1 -> ... -> tokenIn
             bytes memory path = _buildPathForExactOutput(tokenIn, tokenOut);
 
-            ISwapRouter.ExactOutputParams memory params = ISwapRouter
-                .ExactOutputParams({
-                    path: path,
-                    recipient: msg.sender,
-                    deadline: block.timestamp,
-                    amountOut: amountOut,
-                    amountInMaximum: maxAmountInWithSlippage
-                });
+            ISwapRouter.ExactOutputParams memory params = ISwapRouter.ExactOutputParams({
+                path: path,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountOut: amountOut,
+                amountInMaximum: maxAmountInWithSlippage
+            });
 
             amountIn = swapRouter.exactOutput(params);
         } else {
-            ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
-                .ExactOutputSingleParams({
-                    tokenIn: tokenIn,
-                    tokenOut: tokenOut,
-                    fee: POOL_FEE,
-                    recipient: msg.sender,
-                    deadline: block.timestamp,
-                    amountOut: amountOut,
-                    amountInMaximum: maxAmountInWithSlippage,
-                    sqrtPriceLimitX96: 0
-                });
+            ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter.ExactOutputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: POOL_FEE,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountOut: amountOut,
+                amountInMaximum: maxAmountInWithSlippage,
+                sqrtPriceLimitX96: 0
+            });
 
             amountIn = swapRouter.exactOutputSingle(params);
         }
 
         if (amountIn < maxAmountInWithSlippage) {
             TransferHelper.safeApprove(tokenIn, address(swapRouter), 0);
-            TransferHelper.safeTransfer(
-                tokenIn,
-                msg.sender,
-                maxAmountInWithSlippage - amountIn
-            );
+            TransferHelper.safeTransfer(tokenIn, msg.sender, maxAmountInWithSlippage - amountIn);
         }
 
         emit SwapExecuted(tokenIn, tokenOut, amountIn, amountOut, msg.sender);
     }
 
-    function _applySlippageToMaxInput(
-        uint256 amountIn
-    ) internal view returns (uint256) {
+    function _applySlippageToMaxInput(uint256 amountIn) internal view returns (uint256) {
         return (amountIn * (BASIS_POINTS + _SLIPPAGE_TOLERANCE)) / BASIS_POINTS;
     }
 
-    function _isValidPair(
-        address tokenA,
-        address tokenB
-    ) internal view returns (bool) {
+    function _isValidPair(address tokenA, address tokenB) internal view returns (bool) {
         return validPairs[tokenA][tokenB];
     }
 
-    function _needsMultihop(
-        address tokenIn,
-        address tokenOut
-    ) internal view returns (bool) {
+    function _needsMultihop(address tokenIn, address tokenOut) internal view returns (bool) {
         return multihopPairs[tokenIn][tokenOut].length > 0;
     }
 
-    function _buildPathForExactInput(
-        address tokenIn,
-        address tokenOut
-    ) internal view returns (bytes memory) {
+    function _buildPathForExactInput(address tokenIn, address tokenOut) internal view returns (bytes memory) {
         address[] memory intermediaries = multihopPairs[tokenIn][tokenOut];
 
         bytes memory path = abi.encodePacked(tokenIn);
@@ -252,10 +206,7 @@ contract UniswapV3ExchangeProvider {
         return path;
     }
 
-    function _buildPathForExactOutput(
-        address tokenIn,
-        address tokenOut
-    ) internal view returns (bytes memory) {
+    function _buildPathForExactOutput(address tokenIn, address tokenOut) internal view returns (bytes memory) {
         address[] memory intermediaries = multihopPairs[tokenIn][tokenOut];
 
         bytes memory path = abi.encodePacked(tokenOut);

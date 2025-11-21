@@ -2,13 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
-import {
-    ISwapRouter
-} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {UniswapV3ExchangeProvider} from "../UniswapV3ExchangeProvider.sol";
-import {
-    UniswapV3ExchangeProviderTestConfig
-} from "./UniswapV3ExchangeProviderTestConfig.sol";
+import {UniswapV3ExchangeProviderTestConfig} from "./UniswapV3ExchangeProviderTestConfig.sol";
 
 contract UniswapV3ExchangeProviderTest is Test {
     UniswapV3ExchangeProvider public uniswapV3ExchangeProvider;
@@ -34,21 +30,13 @@ contract UniswapV3ExchangeProviderTest is Test {
 
         // Use library helpers - much cleaner!
         UniswapV3ExchangeProviderTestConfig.weth().deposit{value: 10 ether}();
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            10 ether
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), 10 ether);
 
         uint256 amountOut = uniswapV3ExchangeProvider.swapInput(
-            UniswapV3ExchangeProviderTestConfig.WETH,
-            UniswapV3ExchangeProviderTestConfig.USDC,
-            2 ether,
-            0
+            UniswapV3ExchangeProviderTestConfig.WETH, UniswapV3ExchangeProviderTestConfig.USDC, 2 ether, 0
         );
 
-        uint256 userBalance = UniswapV3ExchangeProviderTestConfig
-            .usdc()
-            .balanceOf(user);
+        uint256 userBalance = UniswapV3ExchangeProviderTestConfig.usdc().balanceOf(user);
 
         vm.stopPrank();
 
@@ -67,14 +55,9 @@ contract UniswapV3ExchangeProviderTest is Test {
         uint256 desiredUsdcOut = 3000 * 1e6;
         uint256 maxWethIn = 2 ether;
 
-        uint256 initialWeth = UniswapV3ExchangeProviderTestConfig
-            .weth()
-            .balanceOf(user);
+        uint256 initialWeth = UniswapV3ExchangeProviderTestConfig.weth().balanceOf(user);
 
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            maxWethIn * 2
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), maxWethIn * 2);
 
         uint256 actualWethSpent = uniswapV3ExchangeProvider.swapOutput(
             UniswapV3ExchangeProviderTestConfig.WETH,
@@ -92,14 +75,8 @@ contract UniswapV3ExchangeProviderTest is Test {
         );
         assertLe(actualWethSpent, maxWethIn, "Should not spend more than max");
 
-        uint256 finalWeth = UniswapV3ExchangeProviderTestConfig
-            .weth()
-            .balanceOf(user);
-        assertEq(
-            initialWeth - finalWeth,
-            actualWethSpent,
-            "WETH spent should match"
-        );
+        uint256 finalWeth = UniswapV3ExchangeProviderTestConfig.weth().balanceOf(user);
+        assertEq(initialWeth - finalWeth, actualWethSpent, "WETH spent should match");
 
         console.log("Spent WETH:", actualWethSpent);
         console.log("Received USDC:", desiredUsdcOut);
@@ -110,21 +87,13 @@ contract UniswapV3ExchangeProviderTest is Test {
         vm.deal(user, 100 ether);
 
         UniswapV3ExchangeProviderTestConfig.weth().deposit{value: 10 ether}();
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            10 ether
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), 10 ether);
 
         uint256 amountOut = uniswapV3ExchangeProvider.swapInput(
-            UniswapV3ExchangeProviderTestConfig.WETH,
-            UniswapV3ExchangeProviderTestConfig.LINK,
-            2 ether,
-            0
+            UniswapV3ExchangeProviderTestConfig.WETH, UniswapV3ExchangeProviderTestConfig.LINK, 2 ether, 0
         );
 
-        uint256 userBalance = UniswapV3ExchangeProviderTestConfig
-            .link()
-            .balanceOf(user);
+        uint256 userBalance = UniswapV3ExchangeProviderTestConfig.link().balanceOf(user);
 
         vm.stopPrank();
 
@@ -139,22 +108,14 @@ contract UniswapV3ExchangeProviderTest is Test {
         vm.deal(user, 100 ether);
 
         UniswapV3ExchangeProviderTestConfig.weth().deposit{value: 10 ether}();
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            10 ether
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), 10 ether);
 
         uint256 desiredLinkOut = 1 ether;
         uint256 maxWethIn = 2 ether;
 
-        uint256 initialWeth = UniswapV3ExchangeProviderTestConfig
-            .weth()
-            .balanceOf(user);
+        uint256 initialWeth = UniswapV3ExchangeProviderTestConfig.weth().balanceOf(user);
 
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            maxWethIn * 2
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), maxWethIn * 2);
 
         uint256 actualWethSpent = uniswapV3ExchangeProvider.swapOutput(
             UniswapV3ExchangeProviderTestConfig.WETH,
@@ -163,9 +124,7 @@ contract UniswapV3ExchangeProviderTest is Test {
             maxWethIn
         );
 
-        uint256 finalWeth = UniswapV3ExchangeProviderTestConfig
-            .weth()
-            .balanceOf(user);
+        uint256 finalWeth = UniswapV3ExchangeProviderTestConfig.weth().balanceOf(user);
         vm.stopPrank();
 
         assertEq(
@@ -175,11 +134,7 @@ contract UniswapV3ExchangeProviderTest is Test {
         );
         assertLe(actualWethSpent, maxWethIn, "Should not spend more than max");
 
-        assertEq(
-            initialWeth - finalWeth,
-            actualWethSpent,
-            "WETH spent should match"
-        );
+        assertEq(initialWeth - finalWeth, actualWethSpent, "WETH spent should match");
 
         console.log("Spent WETH:", actualWethSpent);
         console.log("Received LINK:", desiredLinkOut);
@@ -190,21 +145,13 @@ contract UniswapV3ExchangeProviderTest is Test {
         vm.deal(user, 100 ether);
 
         UniswapV3ExchangeProviderTestConfig.weth().deposit{value: 10 ether}();
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            10 ether
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), 10 ether);
 
         uint256 amountOut = uniswapV3ExchangeProvider.swapInput(
-            UniswapV3ExchangeProviderTestConfig.WETH,
-            UniswapV3ExchangeProviderTestConfig.WBTC,
-            2 ether,
-            0
+            UniswapV3ExchangeProviderTestConfig.WETH, UniswapV3ExchangeProviderTestConfig.WBTC, 2 ether, 0
         );
 
-        uint256 userBalance = UniswapV3ExchangeProviderTestConfig
-            .wbtc()
-            .balanceOf(user);
+        uint256 userBalance = UniswapV3ExchangeProviderTestConfig.wbtc().balanceOf(user);
         vm.stopPrank();
 
         assertGt(amountOut, 0, "Should receive WBTC");
@@ -222,20 +169,12 @@ contract UniswapV3ExchangeProviderTest is Test {
         uint256 desiredBtcOut = 100000;
         uint256 maxWethIn = 0.05 ether;
 
-        uint256 initialWeth = UniswapV3ExchangeProviderTestConfig
-            .weth()
-            .balanceOf(user);
+        uint256 initialWeth = UniswapV3ExchangeProviderTestConfig.weth().balanceOf(user);
 
-        UniswapV3ExchangeProviderTestConfig.weth().approve(
-            address(uniswapV3ExchangeProvider),
-            maxWethIn * 2
-        );
+        UniswapV3ExchangeProviderTestConfig.weth().approve(address(uniswapV3ExchangeProvider), maxWethIn * 2);
 
         uint256 actualWethSpent = uniswapV3ExchangeProvider.swapOutput(
-            UniswapV3ExchangeProviderTestConfig.WETH,
-            UniswapV3ExchangeProviderTestConfig.WBTC,
-            desiredBtcOut,
-            maxWethIn
+            UniswapV3ExchangeProviderTestConfig.WETH, UniswapV3ExchangeProviderTestConfig.WBTC, desiredBtcOut, maxWethIn
         );
 
         vm.stopPrank();
@@ -247,14 +186,8 @@ contract UniswapV3ExchangeProviderTest is Test {
         );
         assertLe(actualWethSpent, maxWethIn, "Should not spend more than max");
 
-        uint256 finalWeth = UniswapV3ExchangeProviderTestConfig
-            .weth()
-            .balanceOf(user);
-        assertEq(
-            initialWeth - finalWeth,
-            actualWethSpent,
-            "WETH spent should match"
-        );
+        uint256 finalWeth = UniswapV3ExchangeProviderTestConfig.weth().balanceOf(user);
+        assertEq(initialWeth - finalWeth, actualWethSpent, "WETH spent should match");
 
         console.log("Spent WETH:", actualWethSpent);
         console.log("Received WBTC:", desiredBtcOut);

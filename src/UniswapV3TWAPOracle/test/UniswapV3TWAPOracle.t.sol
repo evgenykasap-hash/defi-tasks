@@ -27,21 +27,12 @@ contract UniswapV3TWAPOracleTest is Test {
     }
 
     function testGetAveragePriceForUnsupportedPool() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                UniswapV3TWAPOracle.UnsupportedPool.selector,
-                address(0xCAFE)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(UniswapV3TWAPOracle.UnsupportedPool.selector, address(0xCAFE)));
         oracle.getAveragePrice(address(0xCAFE), 10 minutes);
     }
 
     function testGetAveragePriceForZeroInterval() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                UniswapV3TWAPOracle.AmountMustBeGreaterThanZero.selector
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(UniswapV3TWAPOracle.AmountMustBeGreaterThanZero.selector));
         oracle.getAveragePrice(pools[0], 0);
     }
 }
