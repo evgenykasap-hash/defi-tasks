@@ -1,82 +1,91 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {FullMath} from "../libraries/FullMath.sol";
-import {TickMath} from "../libraries/TickMath.sol";
+import {
+    IUniswapV3Pool
+} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {
+    OracleLibrary
+} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
+import {IERC20Extended} from "../libraries/IERC20Extended.sol";
 
-contract UniswapV3TWAPOracle {
+interface IUniswapV3TWAPOracle {
+    error IntervalMustBeGreaterThanZero();
     error AmountMustBeGreaterThanZero();
     error PoolArrayCannotBeEmpty();
     error UnsupportedPool(address pool);
+    error NotOwner();
 
+    function getAveragePrice(
+        address poolAddress,
+        uint256 amountIn,
+        uint32 twapInterval
+    ) external view returns (uint256 amountOut);
+
+    function checkIfPoolIsSupported(
+        address poolAddress
+    ) external view returns (bool);
+
+    function addPool(address poolAddress) external;
+    function removePool(address poolAddress) external;
+}
+
+contract UniswapV3TWAPOracle is IUniswapV3TWAPOracle {
     mapping(address => bool) public supportedPools;
+    address public owner;
 
-    constructor(address[] memory pools) {
-        if (pools.length == 0) {
-            revert PoolArrayCannotBeEmpty();
+    modifier _onlyOwner() {
+        if (msg.sender != address(owner)) {
+            revert NotOwner();
         }
-
-        for (uint256 i = 0; i < pools.length; i++) {
-            supportedPools[pools[i]] = true;
-        }
+        _;
     }
 
-    function getAveragePrice(address poolAddress, uint32 twapInterval) external view returns (uint256 amountOut) {
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function getAveragePrice(
+        address poolAddress,
+        uint256 amountIn,
+        uint32 twapInterval
+    ) external view returns (uint256 amountOut) {
         if (!supportedPools[poolAddress]) {
             revert UnsupportedPool(poolAddress);
         }
 
         if (twapInterval == 0) {
+            revert IntervalMustBeGreaterThanZero();
+        }
+
+        if (amountIn == 0) {
             revert AmountMustBeGreaterThanZero();
         }
 
-        uint32[] memory secondsAgos = new uint32[](2);
-        secondsAgos[0] = twapInterval;
-        secondsAgos[1] = 0;
+        (int24 arithmeticMeanTick, ) = OracleLibrary.consult(
+            poolAddress,
+            twapInterval
+        );
 
-        IUniswapV3Pool pool = IUniswapV3Pool(poolAddress);
-
-        (int56[] memory tickCumulatives,) = pool.observe(secondsAgos);
-
-        int56 tickCumulativeDelta = tickCumulatives[1] - tickCumulatives[0];
-        int56 interval = int56(uint56(twapInterval));
-        int56 meanTick = tickCumulativeDelta / interval;
-
-        if (tickCumulativeDelta < 0 && (tickCumulativeDelta % interval != 0)) {
-            meanTick--;
-        }
-
-        int24 boundedTick;
-        if (meanTick < TickMath.MIN_TICK) {
-            boundedTick = TickMath.MIN_TICK;
-        } else if (meanTick > TickMath.MAX_TICK) {
-            boundedTick = TickMath.MAX_TICK;
-        } else {
-            // Casting is safe: meanTick already falls within the TickMath bounds above.
-            // forge-lint: disable-next-line(unsafe-typecast)
-            boundedTick = int24(meanTick);
-        }
-
-        amountOut = _getQuoteAtTick(boundedTick, 1 << 96, pool.token0(), pool.token1());
+        amountOut = OracleLibrary.getQuoteAtTick(
+            arithmeticMeanTick,
+            uint128(amountIn),
+            IUniswapV3Pool(poolAddress).token0(),
+            IUniswapV3Pool(poolAddress).token1()
+        );
     }
 
-    function _getQuoteAtTick(int24 tick, uint128 baseAmount, address baseToken, address quoteToken)
-        internal
-        pure
-        returns (uint256 quoteAmount)
-    {
-        uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
-        if (sqrtRatioX96 <= type(uint128).max) {
-            uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
-            quoteAmount = baseToken < quoteToken
-                ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
-                : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
-        } else {
-            uint256 ratioX128 = FullMath.mulDiv(sqrtRatioX96, sqrtRatioX96, 1 << 64);
-            quoteAmount = baseToken < quoteToken
-                ? FullMath.mulDiv(ratioX128, baseAmount, 1 << 128)
-                : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
-        }
+    function checkIfPoolIsSupported(
+        address poolAddress
+    ) external view returns (bool) {
+        return supportedPools[poolAddress];
+    }
+
+    function addPool(address poolAddress) external _onlyOwner {
+        supportedPools[poolAddress] = true;
+    }
+
+    function removePool(address poolAddress) external _onlyOwner {
+        supportedPools[poolAddress] = false;
     }
 }

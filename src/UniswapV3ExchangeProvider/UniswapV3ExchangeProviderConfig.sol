@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {UniswapV3ExchangeProvider} from "./UniswapV3ExchangeProvider.sol";
+import {IUniswapV3ExchangeProvider} from "./UniswapV3ExchangeProvider.sol";
 
 /// @title UniswapV3ExchangeProviderConfig
 /// @notice Shared configuration for deployment and testing
@@ -25,8 +25,8 @@ library UniswapV3ExchangeProviderConfig {
 
     /// @notice Get default singlehop pair configuration
     /// @dev Used by both deployment scripts and tests
-    function getDefaultSinglehopPairs() internal pure returns (UniswapV3ExchangeProvider.SinglehopPair[] memory) {
-        UniswapV3ExchangeProvider.SinglehopPair[] memory pairs = new UniswapV3ExchangeProvider.SinglehopPair[](3);
+    function getDefaultSinglehopPairs() internal pure returns (IUniswapV3ExchangeProvider.SinglehopPair[] memory) {
+        IUniswapV3ExchangeProvider.SinglehopPair[] memory pairs = new IUniswapV3ExchangeProvider.SinglehopPair[](3);
 
         pairs[0] = createSinglehopPair(WETH, USDC);
         pairs[1] = createSinglehopPair(LINK, USDC);
@@ -37,8 +37,8 @@ library UniswapV3ExchangeProviderConfig {
 
     /// @notice Get default multihop pair configuration
     /// @dev Used by both deployment scripts and tests
-    function getDefaultMultihopPairs() internal pure returns (UniswapV3ExchangeProvider.MultihopPair[] memory) {
-        UniswapV3ExchangeProvider.MultihopPair[] memory pairs = new UniswapV3ExchangeProvider.MultihopPair[](2);
+    function getDefaultMultihopPairs() internal pure returns (IUniswapV3ExchangeProvider.MultihopPair[] memory) {
+        IUniswapV3ExchangeProvider.MultihopPair[] memory pairs = new IUniswapV3ExchangeProvider.MultihopPair[](2);
 
         // WETH -> LINK route through USDC
         address[] memory wethLinkPath = new address[](1);
@@ -62,18 +62,18 @@ library UniswapV3ExchangeProviderConfig {
     function createSinglehopPair(address tokenA, address tokenB)
         internal
         pure
-        returns (UniswapV3ExchangeProvider.SinglehopPair memory)
+        returns (IUniswapV3ExchangeProvider.SinglehopPair memory)
     {
-        return UniswapV3ExchangeProvider.SinglehopPair({tokenA: tokenA, tokenB: tokenB});
+        return IUniswapV3ExchangeProvider.SinglehopPair({tokenA: tokenA, tokenB: tokenB});
     }
 
     /// @notice Create a custom multihop pair
     function createMultihopPair(address tokenIn, address tokenOut, address[] memory intermediaries)
         internal
         pure
-        returns (UniswapV3ExchangeProvider.MultihopPair memory)
+        returns (IUniswapV3ExchangeProvider.MultihopPair memory)
     {
-        return UniswapV3ExchangeProvider.MultihopPair({
+        return IUniswapV3ExchangeProvider.MultihopPair({
             tokenIn: tokenIn, tokenOut: tokenOut, intermediaryTokens: intermediaries
         });
     }

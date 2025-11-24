@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
-contract UniswapV3ExchangeProvider {
+interface IUniswapV3ExchangeProvider {
     error InvalidTokenPair();
     error AmountMustBeGreaterThanZero();
     error InvalidMultihopPath();
@@ -17,6 +17,13 @@ contract UniswapV3ExchangeProvider {
         address indexed recipient
     );
 
+    function swapInput(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut)
+        external
+        returns (uint256 amountOut);
+    function swapOutput(address tokenIn, address tokenOut, uint256 amountOut, uint256 maxAmountIn)
+        external
+        returns (uint256 amountIn);
+
     struct SinglehopPair {
         address tokenA;
         address tokenB;
@@ -27,7 +34,9 @@ contract UniswapV3ExchangeProvider {
         address tokenOut;
         address[] intermediaryTokens;
     }
+}
 
+contract UniswapV3ExchangeProvider is IUniswapV3ExchangeProvider {
     ISwapRouter public swapRouter;
     uint24 public immutable POOL_FEE;
     uint256 private immutable _SLIPPAGE_TOLERANCE;

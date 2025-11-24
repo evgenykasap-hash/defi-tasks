@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {IERC20Extended} from "../../libraries/IERC20Extended.sol";
 import {UniswapV3ExchangeProviderConfig} from "../UniswapV3ExchangeProviderConfig.sol";
 import {UniswapV3ExchangeProvider} from "../UniswapV3ExchangeProvider.sol";
-
-interface ITOKEN is IERC20 {
-    function deposit() external payable;
-    function withdraw(uint256) external;
-}
 
 /// @title UniswapV3ExchangeProviderTestConfig
 /// @notice Test-specific helpers extending base Config
@@ -36,28 +31,28 @@ library UniswapV3ExchangeProviderTestConfig {
     // ============ Token Interface Helpers (Test-specific) ============
 
     /// @notice Get WETH token interface
-    function weth() internal pure returns (ITOKEN) {
-        return ITOKEN(WETH);
+    function weth() internal pure returns (IERC20Extended) {
+        return IERC20Extended(WETH);
     }
 
     /// @notice Get USDC token interface
-    function usdc() internal pure returns (ITOKEN) {
-        return ITOKEN(USDC);
+    function usdc() internal pure returns (IERC20Extended) {
+        return IERC20Extended(USDC);
     }
 
     /// @notice Get USDT token interface
-    function usdt() internal pure returns (ITOKEN) {
-        return ITOKEN(USDT);
+    function usdt() internal pure returns (IERC20Extended) {
+        return IERC20Extended(USDT);
     }
 
     /// @notice Get WBTC token interface
-    function wbtc() internal pure returns (ITOKEN) {
-        return ITOKEN(WBTC);
+    function wbtc() internal pure returns (IERC20Extended) {
+        return IERC20Extended(WBTC);
     }
 
     /// @notice Get LINK token interface
-    function link() internal pure returns (ITOKEN) {
-        return ITOKEN(LINK);
+    function link() internal pure returns (IERC20Extended) {
+        return IERC20Extended(LINK);
     }
 
     // ============ Pair Configuration (Delegated to Config) ============
