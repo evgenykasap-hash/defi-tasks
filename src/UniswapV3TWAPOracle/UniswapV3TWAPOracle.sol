@@ -1,23 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
-
 import {
     IUniswapV3Pool
 } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {
     OracleLibrary
 } from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
-import {IERC20Extended} from "../libraries/IERC20Extended.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 interface IUniswapV3TWAPOracle {
     error IntervalMustBeGreaterThanZero();
     error AmountMustBeGreaterThanZero();
-    error PoolArrayCannotBeEmpty();
     error UnsupportedPool(address pool);
     error NotOwner();
 
+    struct Pool {
+        address tokenA;
+        address tokenB;
+    }
+
     function getAveragePrice(
         address poolAddress,
+        address tokenA,
+        address tokenB,
         uint256 amountIn,
         uint32 twapInterval
     ) external view returns (uint256 amountOut);
@@ -31,15 +36,8 @@ interface IUniswapV3TWAPOracle {
 }
 
 contract UniswapV3TWAPOracle is IUniswapV3TWAPOracle {
-    mapping(address => bool) public supportedPools;
+    mapping(address => Pool) public supportedPools;
     address public owner;
-
-    modifier _onlyOwner() {
-        if (msg.sender != address(owner)) {
-            revert NotOwner();
-        }
-        _;
-    }
 
     constructor() {
         owner = msg.sender;
@@ -47,13 +45,16 @@ contract UniswapV3TWAPOracle is IUniswapV3TWAPOracle {
 
     function getAveragePrice(
         address poolAddress,
+        address tokenA,
+        address tokenB,
         uint256 amountIn,
         uint32 twapInterval
-    ) external view returns (uint256 amountOut) {
-        if (!supportedPools[poolAddress]) {
-            revert UnsupportedPool(poolAddress);
-        }
-
+    )
+        external
+        view
+        _supportedPool(poolAddress, tokenA, tokenB)
+        returns (uint256 amountOut)
+    {
         if (twapInterval == 0) {
             revert IntervalMustBeGreaterThanZero();
         }
@@ -70,22 +71,57 @@ contract UniswapV3TWAPOracle is IUniswapV3TWAPOracle {
         amountOut = OracleLibrary.getQuoteAtTick(
             arithmeticMeanTick,
             uint128(amountIn),
-            IUniswapV3Pool(poolAddress).token0(),
-            IUniswapV3Pool(poolAddress).token1()
+            tokenA,
+            tokenB
         );
     }
 
     function checkIfPoolIsSupported(
         address poolAddress
     ) external view returns (bool) {
-        return supportedPools[poolAddress];
+        return
+            supportedPools[poolAddress].tokenA != address(0) &&
+            supportedPools[poolAddress].tokenB != address(0);
     }
 
     function addPool(address poolAddress) external _onlyOwner {
-        supportedPools[poolAddress] = true;
+        IUniswapV3Pool pool = IUniswapV3Pool(poolAddress);
+        address tokenA = pool.token0();
+        address tokenB = pool.token1();
+
+        supportedPools[poolAddress] = Pool({tokenA: tokenA, tokenB: tokenB});
     }
 
     function removePool(address poolAddress) external _onlyOwner {
-        supportedPools[poolAddress] = false;
+        delete supportedPools[poolAddress];
+    }
+
+    function getPool(
+        address poolAddress
+    ) external pure returns (IUniswapV3Pool pool) {
+        pool = IUniswapV3Pool(poolAddress);
+    }
+
+    modifier _onlyOwner() {
+        if (msg.sender != address(owner)) {
+            revert NotOwner();
+        }
+        _;
+    }
+
+    modifier _supportedPool(
+        address poolAddress,
+        address tokenA,
+        address tokenB
+    ) {
+        bool isValid = (supportedPools[poolAddress].tokenA == tokenA &&
+            supportedPools[poolAddress].tokenB == tokenB) ||
+            (supportedPools[poolAddress].tokenA == tokenB &&
+                supportedPools[poolAddress].tokenB == tokenA);
+
+        if (!isValid) {
+            revert UnsupportedPool(poolAddress);
+        }
+        _;
     }
 }

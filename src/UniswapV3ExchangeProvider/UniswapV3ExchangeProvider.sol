@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
-
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import {
+    ISwapRouter
+} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {
+    TransferHelper
+} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import {
+    UniswapV3TWAPOracle
+} from "../UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
+import {
+    IUniswapV3Pool
+} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 interface IUniswapV3ExchangeProvider {
     error InvalidTokenPair();
+    error PairAlreadyExists();
     error AmountMustBeGreaterThanZero();
-    error InvalidMultihopPath();
 
     event SwapExecuted(
         address indexed tokenIn,
@@ -17,117 +26,158 @@ interface IUniswapV3ExchangeProvider {
         address indexed recipient
     );
 
-    function swapInput(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut)
-        external
-        returns (uint256 amountOut);
-    function swapOutput(address tokenIn, address tokenOut, uint256 amountOut, uint256 maxAmountIn)
-        external
-        returns (uint256 amountIn);
-
-    struct SinglehopPair {
+    struct SwapParams {
+        address poolAddress;
         address tokenA;
         address tokenB;
     }
 
-    struct MultihopPair {
-        address tokenIn;
-        address tokenOut;
-        address[] intermediaryTokens;
+    struct Pair {
+        /* Swaps sequence for single/multi-hop swaps.
+         * Input token (tokenA), output token (tokenB) and their pool address.
+         * For example, we can have a pool DAI/USDC,
+         * but we want to change USDC to DAI, so we need to keep the sequence as USDC -> DAI and
+         * give it to the TWAP provider for a proper price calculation.
+         */
+        SwapParams[] swaps;
+        address token0;
+        address token1;
+        uint24 poolFee;
+        bytes encodedPathInput;
+        bytes encodedPathOutput;
+        uint256 slippageTolerance;
     }
+
+    function swapInput(
+        bytes32 pairKey,
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn
+    ) external returns (uint256 amountOut);
+
+    function swapOutput(
+        bytes32 pairKey,
+        address tokenIn,
+        address tokenOut,
+        uint256 amountOut,
+        uint256 maxAmountIn
+    ) external returns (uint256 amountIn);
+
+    function addPair(
+        SwapParams[] calldata swaps,
+        uint24 poolFee,
+        uint256 slippageTolerance
+    ) external;
 }
 
 contract UniswapV3ExchangeProvider is IUniswapV3ExchangeProvider {
     ISwapRouter public swapRouter;
-    uint24 public immutable POOL_FEE;
-    uint256 private immutable _SLIPPAGE_TOLERANCE;
     uint256 private constant BASIS_POINTS = 10000;
 
-    mapping(address => mapping(address => bool)) private validPairs;
-    mapping(address => mapping(address => address[])) private multihopPairs;
+    UniswapV3TWAPOracle public uniswapV3TWAPOracle;
 
-    constructor(
-        ISwapRouter _swapRouter,
-        uint24 _poolFee,
-        SinglehopPair[] memory _singlehopPairs,
-        MultihopPair[] memory _multihopPairs,
-        uint256 _slippageTolerance
-    ) {
+    /*
+     * @dev Mapping of pair key to pair data.
+     * @notice The pair key is a keccak256 hash of the token0 and token1 addresses.
+     * @notice The pair data is a struct that contains the pair's swaps, token0, token1, pool fee, encoded path input, encoded path output, and slippage tolerance.
+     */
+    mapping(bytes32 => Pair) private validPairs;
+
+    constructor(ISwapRouter _swapRouter) {
         swapRouter = _swapRouter;
-        POOL_FEE = _poolFee;
-        _SLIPPAGE_TOLERANCE = _slippageTolerance;
-
-        // Initialize singlehop pairs
-        for (uint256 i = 0; i < _singlehopPairs.length; i++) {
-            address tokenA = _singlehopPairs[i].tokenA;
-            address tokenB = _singlehopPairs[i].tokenB;
-
-            validPairs[tokenA][tokenB] = true;
-            validPairs[tokenB][tokenA] = true;
-        }
-
-        // Initialize multihop routes
-        for (uint256 i = 0; i < _multihopPairs.length; i++) {
-            address tokenIn = _multihopPairs[i].tokenIn;
-            address tokenOut = _multihopPairs[i].tokenOut;
-            address[] memory intermediaries = _multihopPairs[i].intermediaryTokens;
-
-            if (intermediaries.length == 0) {
-                revert InvalidMultihopPath();
-            }
-
-            validPairs[tokenIn][tokenOut] = true;
-            validPairs[tokenOut][tokenIn] = true;
-
-            multihopPairs[tokenIn][tokenOut] = intermediaries;
-
-            address[] memory reverseIntermediaries = new address[](intermediaries.length);
-            for (uint256 j = 0; j < intermediaries.length; j++) {
-                reverseIntermediaries[j] = intermediaries[intermediaries.length - 1 - j];
-            }
-            multihopPairs[tokenOut][tokenIn] = reverseIntermediaries;
-        }
+        uniswapV3TWAPOracle = new UniswapV3TWAPOracle();
     }
 
-    function swapInput(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut)
+    function swapInput(
+        bytes32 pairKey,
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn
+    )
         public
+        _validPair(pairKey, tokenIn, tokenOut)
         returns (uint256 amountOut)
     {
-        if (!_isValidPair(tokenIn, tokenOut)) {
-            revert InvalidTokenPair();
-        }
-
         if (amountIn == 0) {
             revert AmountMustBeGreaterThanZero();
         }
 
-        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
+        Pair memory pair = validPairs[pairKey];
+
+        bool isFirstToken = tokenIn == pair.token0;
 
         TransferHelper.safeApprove(tokenIn, address(swapRouter), amountIn);
 
-        if (_needsMultihop(tokenIn, tokenOut)) {
-            // Build path: tokenIn -> intermediary1 -> intermediary2 -> ... -> tokenOut
-            bytes memory path = _buildPathForExactInput(tokenIn, tokenOut);
+        TransferHelper.safeTransferFrom(
+            tokenIn,
+            msg.sender,
+            address(this),
+            amountIn
+        );
 
-            ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
-                path: path,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: amountIn,
-                amountOutMinimum: minAmountOut
-            });
+        if (pair.swaps.length > 1) {
+            uint256 minAmountOut;
+            uint256 poolAmountIn = amountIn;
+
+            for (uint256 i = 0; i < pair.swaps.length; i++) {
+                uint256 index = isFirstToken ? i : pair.swaps.length - i - 1;
+                address multihopTokenIn = isFirstToken
+                    ? pair.swaps[index].tokenA
+                    : pair.swaps[index].tokenB;
+                address multihopTokenOut = isFirstToken
+                    ? pair.swaps[index].tokenB
+                    : pair.swaps[index].tokenA;
+
+                uint256 poolAmountOut = uniswapV3TWAPOracle.getAveragePrice(
+                    pair.swaps[index].poolAddress,
+                    multihopTokenIn,
+                    multihopTokenOut,
+                    poolAmountIn,
+                    5 minutes
+                );
+
+                poolAmountIn = poolAmountOut;
+                minAmountOut = poolAmountOut;
+            }
+
+            minAmountOut = _applySlippage(minAmountOut, pair.slippageTolerance);
+
+            bytes memory path = isFirstToken
+                ? pair.encodedPathInput
+                : pair.encodedPathOutput;
+
+            ISwapRouter.ExactInputParams memory params = ISwapRouter
+                .ExactInputParams({
+                    path: path,
+                    recipient: msg.sender,
+                    deadline: block.timestamp,
+                    amountIn: amountIn,
+                    amountOutMinimum: minAmountOut
+                });
 
             amountOut = swapRouter.exactInput(params);
         } else {
-            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: POOL_FEE,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: amountIn,
-                amountOutMinimum: minAmountOut,
-                sqrtPriceLimitX96: 0
-            });
+            uint256 minAmountOut = uniswapV3TWAPOracle.getAveragePrice(
+                pair.swaps[0].poolAddress,
+                tokenIn,
+                tokenOut,
+                amountIn,
+                5 minutes
+            );
+
+            minAmountOut = _applySlippage(minAmountOut, pair.slippageTolerance);
+
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
+                .ExactInputSingleParams({
+                    tokenIn: tokenIn,
+                    tokenOut: tokenOut,
+                    fee: pair.poolFee,
+                    recipient: msg.sender,
+                    deadline: block.timestamp,
+                    amountIn: amountIn,
+                    amountOutMinimum: minAmountOut,
+                    sqrtPriceLimitX96: 0
+                });
 
             amountOut = swapRouter.exactInputSingle(params);
         }
@@ -135,97 +185,177 @@ contract UniswapV3ExchangeProvider is IUniswapV3ExchangeProvider {
         emit SwapExecuted(tokenIn, tokenOut, amountIn, amountOut, msg.sender);
     }
 
-    function swapOutput(address tokenIn, address tokenOut, uint256 amountOut, uint256 maxAmountIn)
-        public
-        returns (uint256 amountIn)
-    {
-        if (!_isValidPair(tokenIn, tokenOut)) {
-            revert InvalidTokenPair();
-        }
-
+    function swapOutput(
+        bytes32 pairKey,
+        address tokenIn,
+        address tokenOut,
+        uint256 amountOut,
+        uint256 maxAmountIn
+    ) public _validPair(pairKey, tokenIn, tokenOut) returns (uint256 amountIn) {
         if (amountOut == 0 || maxAmountIn == 0) {
             revert AmountMustBeGreaterThanZero();
         }
 
-        uint256 maxAmountInWithSlippage = _applySlippageToMaxInput(maxAmountIn);
+        Pair memory pair = validPairs[pairKey];
 
-        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), maxAmountInWithSlippage);
+        bool isFirstToken = tokenIn == pair.token0;
 
-        TransferHelper.safeApprove(tokenIn, address(swapRouter), maxAmountInWithSlippage);
+        TransferHelper.safeTransferFrom(
+            tokenIn,
+            msg.sender,
+            address(this),
+            maxAmountIn
+        );
 
-        if (_needsMultihop(tokenIn, tokenOut)) {
-            // Build reversed path for exactOutput: tokenOut -> intermediary1 -> ... -> tokenIn
-            bytes memory path = _buildPathForExactOutput(tokenIn, tokenOut);
+        TransferHelper.safeApprove(tokenIn, address(swapRouter), maxAmountIn);
 
-            ISwapRouter.ExactOutputParams memory params = ISwapRouter.ExactOutputParams({
-                path: path,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountOut: amountOut,
-                amountInMaximum: maxAmountInWithSlippage
-            });
+        if (pair.swaps.length > 1) {
+            bytes memory path = isFirstToken
+                ? pair.encodedPathOutput
+                : pair.encodedPathInput;
+            ISwapRouter.ExactOutputParams memory params = ISwapRouter
+                .ExactOutputParams({
+                    path: path,
+                    recipient: msg.sender,
+                    deadline: block.timestamp,
+                    amountOut: amountOut,
+                    amountInMaximum: maxAmountIn
+                });
 
             amountIn = swapRouter.exactOutput(params);
         } else {
-            ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter.ExactOutputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: POOL_FEE,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountOut: amountOut,
-                amountInMaximum: maxAmountInWithSlippage,
-                sqrtPriceLimitX96: 0
-            });
+            ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
+                .ExactOutputSingleParams({
+                    tokenIn: tokenIn,
+                    tokenOut: tokenOut,
+                    fee: pair.poolFee,
+                    recipient: msg.sender,
+                    deadline: block.timestamp,
+                    amountOut: amountOut,
+                    amountInMaximum: maxAmountIn,
+                    sqrtPriceLimitX96: 0
+                });
 
             amountIn = swapRouter.exactOutputSingle(params);
         }
 
-        if (amountIn < maxAmountInWithSlippage) {
+        if (amountIn < maxAmountIn) {
+            uint256 refundAmount = maxAmountIn - amountIn;
             TransferHelper.safeApprove(tokenIn, address(swapRouter), 0);
-            TransferHelper.safeTransfer(tokenIn, msg.sender, maxAmountInWithSlippage - amountIn);
+            TransferHelper.safeTransfer(tokenIn, msg.sender, refundAmount);
         }
 
         emit SwapExecuted(tokenIn, tokenOut, amountIn, amountOut, msg.sender);
     }
 
-    function _applySlippageToMaxInput(uint256 amountIn) internal view returns (uint256) {
-        return (amountIn * (BASIS_POINTS + _SLIPPAGE_TOLERANCE)) / BASIS_POINTS;
-    }
+    function addPair(
+        SwapParams[] calldata swaps,
+        uint24 poolFee,
+        uint256 slippageTolerance
+    ) external {
+        bytes memory encodedPathInput;
+        bytes memory encodedPathOutput;
 
-    function _isValidPair(address tokenA, address tokenB) internal view returns (bool) {
-        return validPairs[tokenA][tokenB];
-    }
+        address token0;
+        address token1;
 
-    function _needsMultihop(address tokenIn, address tokenOut) internal view returns (bool) {
-        return multihopPairs[tokenIn][tokenOut].length > 0;
-    }
+        if (swaps.length > 1) {
+            token0 = swaps[0].tokenA;
+            token1 = swaps[swaps.length - 1].tokenB;
 
-    function _buildPathForExactInput(address tokenIn, address tokenOut) internal view returns (bytes memory) {
-        address[] memory intermediaries = multihopPairs[tokenIn][tokenOut];
+            encodedPathInput = abi.encodePacked(token0);
+            encodedPathOutput = abi.encodePacked(token1);
+            //WBTC/USDT -> USDT/DAI
+            for (uint256 i = 0; i < swaps.length; i++) {
+                if (
+                    !uniswapV3TWAPOracle.checkIfPoolIsSupported(
+                        swaps[i].poolAddress
+                    )
+                ) {
+                    uniswapV3TWAPOracle.addPool(swaps[i].poolAddress);
+                }
 
-        bytes memory path = abi.encodePacked(tokenIn);
+                encodedPathInput = abi.encodePacked(
+                    encodedPathInput,
+                    poolFee,
+                    swaps[i].tokenB
+                );
+                encodedPathOutput = abi.encodePacked(
+                    encodedPathOutput,
+                    poolFee,
+                    swaps[swaps.length - i - 1].tokenA
+                );
+            }
+        } else {
+            if (
+                !uniswapV3TWAPOracle.checkIfPoolIsSupported(
+                    swaps[0].poolAddress
+                )
+            ) {
+                uniswapV3TWAPOracle.addPool(swaps[0].poolAddress);
+            }
 
-        for (uint256 i = 0; i < intermediaries.length; i++) {
-            path = abi.encodePacked(path, POOL_FEE, intermediaries[i]);
+            token0 = swaps[0].tokenA;
+            token1 = swaps[0].tokenB;
+            encodedPathInput = abi.encodePacked(token0, poolFee, token1);
+            encodedPathOutput = abi.encodePacked(token1, poolFee, token0);
         }
 
-        path = abi.encodePacked(path, POOL_FEE, tokenOut);
+        bytes32 key = keccak256(abi.encodePacked(token0, token1));
 
-        return path;
-    }
-
-    function _buildPathForExactOutput(address tokenIn, address tokenOut) internal view returns (bytes memory) {
-        address[] memory intermediaries = multihopPairs[tokenIn][tokenOut];
-
-        bytes memory path = abi.encodePacked(tokenOut);
-
-        for (uint256 i = intermediaries.length; i > 0; i--) {
-            path = abi.encodePacked(path, POOL_FEE, intermediaries[i - 1]);
+        if (validPairs[key].encodedPathInput.length > 0) {
+            revert PairAlreadyExists();
         }
 
-        path = abi.encodePacked(path, POOL_FEE, tokenIn);
+        Pair storage pair = validPairs[key];
 
-        return path;
+        pair.poolFee = poolFee;
+        pair.token0 = token0;
+        pair.token1 = token1;
+        pair.encodedPathInput = encodedPathInput;
+        pair.encodedPathOutput = encodedPathOutput;
+        pair.slippageTolerance = slippageTolerance;
+
+        // can't copy the swaps array from memory to storage, so I need to push each swap individually
+        for (uint256 i = 0; i < swaps.length; i++) {
+            pair.swaps.push(
+                SwapParams({
+                    poolAddress: swaps[i].poolAddress,
+                    tokenA: swaps[i].tokenA,
+                    tokenB: swaps[i].tokenB
+                })
+            );
+        }
+    }
+
+    function getPair(bytes32 pairKey) external view returns (Pair memory) {
+        return validPairs[pairKey];
+    }
+
+    function _applySlippage(
+        uint256 amount,
+        uint256 slippageTolerance
+    ) internal pure returns (uint256) {
+        return (amount * (BASIS_POINTS - slippageTolerance)) / BASIS_POINTS;
+    }
+
+    function _isValidPair(
+        bytes32 pairKey,
+        address tokenIn,
+        address tokenOut
+    ) internal view {
+        bool isValid = (validPairs[pairKey].token0 == tokenIn &&
+            validPairs[pairKey].token1 == tokenOut) ||
+            (validPairs[pairKey].token0 == tokenOut &&
+                validPairs[pairKey].token1 == tokenIn);
+
+        if (!isValid) {
+            revert InvalidTokenPair();
+        }
+    }
+
+    modifier _validPair(bytes32 pairKey, address tokenIn, address tokenOut) {
+        _isValidPair(pairKey, tokenIn, tokenOut);
+        _;
     }
 }

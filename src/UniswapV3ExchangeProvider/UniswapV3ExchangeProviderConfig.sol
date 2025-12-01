@@ -9,72 +9,34 @@ import {IUniswapV3ExchangeProvider} from "./UniswapV3ExchangeProvider.sol";
 library UniswapV3ExchangeProviderConfig {
     // ============ Mainnet Constants ============
 
-    address internal constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    uint24 internal constant POOL_FEE = 3000; // 0.3%
-    uint256 internal constant SLIPPAGE_TOLERANCE = 50; // 0.5%
+    address internal constant SWAP_ROUTER =
+        0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     // ============ Token Addresses ============
 
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
-    // ============ Pair Configuration ============
+    // ============ Pools ============
+    address internal constant WETH_USDT =
+        0x4e68Ccd3E89f51C3074ca5072bbAC773960dFa36;
+    address internal constant WBTC_WETH =
+        0xCBCdF9626bC03E24f779434178A73a0B4bad62eD;
+    address internal constant WBTC_USDT =
+        0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35;
+    address internal constant LINK_WETH =
+        0xa6Cc3C2531FdaA6Ae1A3CA84c2855806728693e8;
 
-    /// @notice Get default singlehop pair configuration
-    /// @dev Used by both deployment scripts and tests
-    function getDefaultSinglehopPairs() internal pure returns (IUniswapV3ExchangeProvider.SinglehopPair[] memory) {
-        IUniswapV3ExchangeProvider.SinglehopPair[] memory pairs = new IUniswapV3ExchangeProvider.SinglehopPair[](3);
+    // ============ Fees ============
+    uint24 internal constant WETH_USDT_FEE = 3000;
+    uint24 internal constant WBTC_USDT_FEE = 3000;
+    uint24 internal constant LINK_WETH_FEE = 3000;
+    uint24 internal constant WBTC_LINK_FEE = 3000;
 
-        pairs[0] = createSinglehopPair(WETH, USDC);
-        pairs[1] = createSinglehopPair(LINK, USDC);
-        pairs[2] = createSinglehopPair(WBTC, USDT);
-
-        return pairs;
-    }
-
-    /// @notice Get default multihop pair configuration
-    /// @dev Used by both deployment scripts and tests
-    function getDefaultMultihopPairs() internal pure returns (IUniswapV3ExchangeProvider.MultihopPair[] memory) {
-        IUniswapV3ExchangeProvider.MultihopPair[] memory pairs = new IUniswapV3ExchangeProvider.MultihopPair[](2);
-
-        // WETH -> LINK route through USDC
-        address[] memory wethLinkPath = new address[](1);
-        wethLinkPath[0] = USDC;
-
-        pairs[0] = createMultihopPair(WETH, LINK, wethLinkPath);
-
-        // WETH -> WBTC route through USDC -> USDT
-        address[] memory wethWbtcPath = new address[](2);
-        wethWbtcPath[0] = USDC;
-        wethWbtcPath[1] = USDT;
-
-        pairs[1] = createMultihopPair(WETH, WBTC, wethWbtcPath);
-
-        return pairs;
-    }
-
-    // ============ Custom Configurations ============
-
-    /// @notice Create a custom singlehop pair
-    function createSinglehopPair(address tokenA, address tokenB)
-        internal
-        pure
-        returns (IUniswapV3ExchangeProvider.SinglehopPair memory)
-    {
-        return IUniswapV3ExchangeProvider.SinglehopPair({tokenA: tokenA, tokenB: tokenB});
-    }
-
-    /// @notice Create a custom multihop pair
-    function createMultihopPair(address tokenIn, address tokenOut, address[] memory intermediaries)
-        internal
-        pure
-        returns (IUniswapV3ExchangeProvider.MultihopPair memory)
-    {
-        return IUniswapV3ExchangeProvider.MultihopPair({
-            tokenIn: tokenIn, tokenOut: tokenOut, intermediaryTokens: intermediaries
-        });
-    }
+    uint24 internal constant WBTC_LINK_SLIPPAGE_TOLERANCE = 100;
+    uint24 internal constant WETH_USDT_SLIPPAGE_TOLERANCE = 500;
+    uint24 internal constant WBTC_USDT_SLIPPAGE_TOLERANCE = 500;
+    uint24 internal constant LINK_WETH_SLIPPAGE_TOLERANCE = 50;
 }
