@@ -9,25 +9,16 @@ contract DeployAaveV3LendingProvider is Script {
     function run() public {
         vm.startBroadcast();
 
-        (
-            address poolAddressesProvider,
-            address weth,
-            address usdc,
-            address dai
-        ) = AaveV3LendingProviderConfig.getConfig();
+        (address poolAddressesProvider, address weth, address usdc, address dai) =
+            AaveV3LendingProviderConfig.getConfig();
 
-        AaveV3LendingProvider aaveV3LendingProvider = new AaveV3LendingProvider(
-            poolAddressesProvider
-        );
+        AaveV3LendingProvider aaveV3LendingProvider = new AaveV3LendingProvider(poolAddressesProvider);
 
         aaveV3LendingProvider.addSupportedToken(weth);
         aaveV3LendingProvider.addSupportedToken(usdc);
         aaveV3LendingProvider.addSupportedToken(dai);
 
-        console.log(
-            "AaveV3LendingProvider deployed at:",
-            address(aaveV3LendingProvider)
-        );
+        console.log("AaveV3LendingProvider deployed at:", address(aaveV3LendingProvider));
 
         vm.stopBroadcast();
     }
