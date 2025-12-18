@@ -22,6 +22,7 @@ contract AaveV3LendingProvider is IAaveV3LendingProvider, Ownable {
     using PercentageMath for uint256;
     using UserConfiguration for DataTypes.UserConfigurationMap;
     uint256 private constant INTEREST_RATE_MODE = uint256(DataTypes.InterestRateMode.VARIABLE);
+    uint8 private constant E_MODE_DISABLED = 0;
 
     IPoolAddressesProvider public addressesProvider;
     IPool public pool;
@@ -180,6 +181,14 @@ contract AaveV3LendingProvider is IAaveV3LendingProvider, Ownable {
         address[] storage tokens = usersData[_user].tokensList;
         uint256 length = tokens.length;
         DataTypes.UserConfigurationMap memory userConfig = pool.getUserConfiguration(address(this));
+        uint8 eModeCategoryId = uint8(pool.getUserEMode(address(this)));
+        DataTypes.CollateralConfig memory eModeCollateralConfig;
+        uint128 eModeCollateralBitmap;
+
+        if (eModeCategoryId != E_MODE_DISABLED) {
+            eModeCollateralConfig = pool.getEModeCategoryCollateralConfig(eModeCategoryId);
+            eModeCollateralBitmap = pool.getEModeCategoryCollateralBitmap(eModeCategoryId);
+        }
 
         for (uint256 i = 0; i < length; ++i) {
             address asset = tokens[i];
@@ -198,10 +207,15 @@ contract AaveV3LendingProvider is IAaveV3LendingProvider, Ownable {
                 uint256 suppliedAmount = tokenData.suppliedScaled.rayMul(liquidityIndex);
 
                 uint256 reserveLiquidationThreshold = ReserveConfiguration.getLiquidationThreshold(configuration);
+                uint256 reserveLtv = ReserveConfiguration.getLtv(configuration);
+
+                if (eModeCategoryId != E_MODE_DISABLED && _isReserveInBitmap(reserveData.id, eModeCollateralBitmap)) {
+                    reserveLiquidationThreshold = uint256(eModeCollateralConfig.liquidationThreshold);
+                    reserveLtv = uint256(eModeCollateralConfig.ltv);
+                }
 
                 if (reserveLiquidationThreshold > 0 && userConfig.isUsingAsCollateral(reserveData.id)) {
                     uint256 suppliedBase = _amountToBase(asset, suppliedAmount);
-                    uint256 reserveLtv = ReserveConfiguration.getLtv(configuration);
 
                     totals.collateral += suppliedBase;
                     totals.ltvAcc += suppliedBase.percentMul(reserveLtv);
@@ -224,6 +238,14 @@ contract AaveV3LendingProvider is IAaveV3LendingProvider, Ownable {
         uint256 healthFactor = totals.debt == 0 ? type(uint256).max : totals.liqAcc.wadDiv(totals.debt);
 
         return (totals.collateral, totals.debt, averageLtv, averageLiquidationThreshold, healthFactor);
+    }
+
+    function _isReserveInBitmap(uint16 reserveId, uint128 bitmap) internal pure returns (bool) {
+        if (reserveId >= 128) {
+            return false;
+        }
+
+        return (bitmap & (uint128(1) << reserveId)) != 0;
     }
 
     function getSuppliedBalanceCollateralFromAsset(address _asset) public view returns (uint256) {
