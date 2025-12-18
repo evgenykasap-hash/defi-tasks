@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import {Test, console} from "forge-std/Test.sol";
 import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import {UniswapV3ExchangeProvider, IUniswapV3ExchangeProvider} from "../UniswapV3ExchangeProvider.sol";
-import {UniswapV3ExchangeProviderConfig} from "../UniswapV3ExchangeProviderConfig.sol";
+import {UniswapV3ExchangeProvider} from "../../src/contracts/UniswapV3ExchangeProvider/UniswapV3ExchangeProvider.sol";
+import {
+    IUniswapV3ExchangeProvider
+} from "../../src/contracts/UniswapV3ExchangeProvider/interfaces/IUniswapV3ExchangeProvider.sol";
+import {
+    UniswapV3ExchangeProviderConfig
+} from "../../src/scripts/UniswapV3ExchangeProvider/UniswapV3ExchangeProviderConfig.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC20Extended} from "../../../interfaces/IERC20Extended.sol";
-import {IUniswapV3TWAPOracle, UniswapV3TWAPOracle} from "../../UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
+import {IERC20Extended} from "../../src/contracts/common/interfaces/IERC20Extended.sol";
+import {UniswapV3TWAPOracle} from "../../src/contracts/UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
+import {IUniswapV3TWAPOracle} from "../../src/contracts/UniswapV3TWAPOracle/interfaces/IUniswapV3TWAPOracle.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract UniswapV3ExchangeProviderTest is Test {

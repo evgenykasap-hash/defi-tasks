@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
-import {AaveV3LendingProvider} from "../AaveV3LendingProvider.sol";
-import {AaveV3LendingProviderConfig} from "../AaveV3LendingProviderConfig.sol";
-import {UniswapV3TWAPOracle} from "../../UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
-import {UniswapV3TWAPOracleConfig} from "../../UniswapV3TWAPOracle/UniswapV3TWAPOracleConfig.sol";
+import {AaveV3LendingProvider} from "../../src/contracts/AaveV3LendingProvider/AaveV3LendingProvider.sol";
+import {AaveV3LendingProviderConfig} from "../../src/scripts/AaveV3LendingProvider/AaveV3LendingProviderConfig.sol";
+import {UniswapV3TWAPOracle} from "../../src/contracts/UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
+import {UniswapV3TWAPOracleConfig} from "../../src/scripts/UniswapV3TWAPOracle/UniswapV3TWAPOracleConfig.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IAaveV3LendingProvider} from "../IAaveV3LendingProvider.sol";
+import {IAaveV3LendingProvider} from "../../src/contracts/AaveV3LendingProvider/interfaces/IAaveV3LendingProvider.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract AaveV3LendingProviderTest is Test {

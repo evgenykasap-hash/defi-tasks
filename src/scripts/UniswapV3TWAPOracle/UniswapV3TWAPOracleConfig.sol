@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 /// @title UniswapV3TWAPOracleConfig
 /// @notice Provides a curated list of Uniswap V3 pool addresses used by the TWAP oracle

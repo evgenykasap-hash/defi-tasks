@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import {UniswapV3TWAPOracle} from "../UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IUniswapV3ExchangeProvider} from "./IUniswapV3ExchangeProvider.sol";
+import {IUniswapV3ExchangeProvider} from "./interfaces/IUniswapV3ExchangeProvider.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract UniswapV3ExchangeProvider is IUniswapV3ExchangeProvider, Ownable {

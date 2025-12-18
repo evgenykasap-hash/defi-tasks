@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import {Script, console} from "forge-std/Script.sol";
-import {UniswapV3ExchangeProvider} from "./UniswapV3ExchangeProvider.sol";
+import {UniswapV3ExchangeProvider} from "../../contracts/UniswapV3ExchangeProvider/UniswapV3ExchangeProvider.sol";
 import {UniswapV3ExchangeProviderConfig} from "./UniswapV3ExchangeProviderConfig.sol";
 
 contract DeployUniswapV3ExchangeProvider is Script {

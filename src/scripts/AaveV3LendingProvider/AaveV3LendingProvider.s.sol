@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import {Script, console} from "forge-std/Script.sol";
-import {AaveV3LendingProvider} from "./AaveV3LendingProvider.sol";
+import {AaveV3LendingProvider} from "../../contracts/AaveV3LendingProvider/AaveV3LendingProvider.sol";
 import {AaveV3LendingProviderConfig} from "./AaveV3LendingProviderConfig.sol";
 
 contract DeployAaveV3LendingProvider is Script {

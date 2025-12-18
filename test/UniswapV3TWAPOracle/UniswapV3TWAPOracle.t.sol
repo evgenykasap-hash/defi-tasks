@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import {Test, console} from "forge-std/Test.sol";
-import {IUniswapV3TWAPOracle, UniswapV3TWAPOracle} from "../UniswapV3TWAPOracle.sol";
+import {UniswapV3TWAPOracle} from "../../src/contracts/UniswapV3TWAPOracle/UniswapV3TWAPOracle.sol";
+import {IUniswapV3TWAPOracle} from "../../src/contracts/UniswapV3TWAPOracle/interfaces/IUniswapV3TWAPOracle.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {UniswapV3TWAPOracleConfig} from "../UniswapV3TWAPOracleConfig.sol";
+import {UniswapV3TWAPOracleConfig} from "../../src/scripts/UniswapV3TWAPOracle/UniswapV3TWAPOracleConfig.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract UniswapV3TWAPOracleTest is Test {
