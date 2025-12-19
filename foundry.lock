@@ -5,6 +5,9 @@
       "rev": "6138e1fda45884b6547d094a1ddeef43dcab4977"
     }
   },
+  "lib/evm-m-extensions": {
+    "rev": "a770965db5a4623404639fce435721b839674714"
+  },
   "lib/forge-std": {
     "tag": {
       "name": "v1.11.0",
@@ -15,6 +18,12 @@
     "tag": {
       "name": "v5.5.0",
       "rev": "fcbae5394ae8ad52d8e580a3477db99814b9d565"
+    }
+  },
+  "lib/openzeppelin-foundry-upgrades": {
+    "tag": {
+      "name": "v0.4.0",
+      "rev": "cbce1e00305e943aa1661d43f41e5ac72c662b07"
     }
   },
   "lib/v3-core": {
