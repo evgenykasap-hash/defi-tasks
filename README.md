@@ -82,7 +82,7 @@ forge script src/AaveV3LendingProvider/AaveV3LendingProvider.s.sol:DeployAaveV3L
 The dedicated test suite relies on lightweight mocks that emulate the Aave V3 pool, tokens, and ETH gateway behaviour:
 
 ```shell
-forge test --match-path src/AaveV3LendingProvider/test/AaveV3LendingProvider.t.sol
+forge test --match-path test/AaveV3LendingProvider/AaveV3LendingProvider.t.sol
 ```
 
 This keeps the tests deterministic while the on-chain contract continues to use the real Aave mainnet endpoints.
